@@ -9,16 +9,33 @@ LDFLAGS = -m elf_i386 -T linker.ld
 KERNEL = kernel.bin
 ISO = MyOS.iso
 
+C_SOURCES = \
+	kernel/kernel.c \
+	kernel/gdt.c \
+	kernel/idt.c \
+	kernel/keyboard.c \
+	kernel/ports.c \
+	kernel/pic.c
+
+C_OBJECTS = $(C_SOURCES:.c=.o)
+
+ASM_SOURCES = \
+	boot/boot.s \
+	kernel/gdt_flush.s \
+	kernel/interrupts.s
+
+ASM_OBJECTS = $(ASM_SOURCES:.s=.o)
+
 all: $(ISO)
 
-boot/boot.o: boot/boot.s
-	$(AS) $(ASFLAGS) $< -o $@
-
-kernel/kernel.o: kernel/kernel.c
+%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(KERNEL): boot/boot.o kernel/kernel.o linker.ld
-	$(LD) $(LDFLAGS) -o $@ boot/boot.o kernel/kernel.o
+%.o: %.s
+	$(AS) $(ASFLAGS) $< -o $@
+
+$(KERNEL): $(C_OBJECTS) $(ASM_OBJECTS) linker.ld
+	$(LD) $(LDFLAGS) -o $@ $(ASM_OBJECTS) $(C_OBJECTS)
 
 $(ISO): $(KERNEL)
 	mkdir -p isodir/boot/grub
@@ -27,4 +44,5 @@ $(ISO): $(KERNEL)
 	grub-mkrescue -o $(ISO) isodir
 
 clean:
-	rm -rf isodir $(KERNEL) $(ISO) boot/*.o kernel/*.o
+	rm -rf isodir $(KERNEL) $(ISO) \
+		kernel/*.o boot/*.o
